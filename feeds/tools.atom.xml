@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Stacked Turtles - Tools</title><link href="http://kiwidamien.github.io/" rel="alternate"></link><link href="http://kiwidamien.github.io/feeds/tools.atom.xml" rel="self"></link><id>http://kiwidamien.github.io/</id><updated>2018-09-10T13:00:00-07:00</updated><entry><title>Big commits in GitHub (and how to undo other small commits)</title><link href="http://kiwidamien.github.io/big-commits-in-github-and-how-to-undo-other-small-commits.html" rel="alternate"></link><published>2018-09-10T13:00:00-07:00</published><updated>2018-09-10T13:00:00-07:00</updated><author><name>Damien Martin</name></author><id>tag:kiwidamien.github.io,2018-09-10:/big-commits-in-github-and-how-to-undo-other-small-commits.html</id><summary type="html">&lt;p&gt;Instructions on how to undo things in GitHub.&lt;/p&gt;</summary><content type="html">&lt;h2&gt;Undoing a large commit&lt;/h2&gt;
+&lt;p&gt;Accidentally committing a large file (i.e. greater than git's limit of 100MB) is a frustrating experience. For example, let's say you made some changes to &lt;code&gt;big_file.bin&lt;/code&gt;, a 200MB file, and to your README in the following way:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;$ dd &lt;span class="k"&gt;if&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;/dev/zero &lt;span class="nv"&gt;of&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;file.txt &lt;span class="nv"&gt;count&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;200&lt;/span&gt; &lt;span class="nv"&gt;bs&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="m"&gt;1048576&lt;/span&gt;  &lt;span class="c1"&gt;# make 200 MB file&lt;/span&gt;
+$ git add big_file.bin                              &lt;span class="c1"&gt;# we will regret this!&lt;/span&gt;
+$ git commit -m &lt;span class="s2"&gt;&amp;quot;committed huge binary file&amp;quot;&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;master 9cee256&lt;span class="o"&gt;]&lt;/span&gt; committed huge binary file
+$ git add README.md
+$ git commit -m &lt;span class="s2"&gt;&amp;quot;... and made a small change to the README&amp;quot;&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;master 0f1a832&lt;span class="o"&gt;]&lt;/span&gt; ... and made small change to the README
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;Everything is fine, until we try to push to our repo:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;$ git push
+....
+remote: error: File big_file.bin is &lt;span class="m"&gt;106&lt;/span&gt;.00 MB&lt;span class="p"&gt;;&lt;/span&gt; this exceeds GitHub&lt;span class="err"&gt;&amp;#39;&lt;/span&gt;s file size limit of &lt;span class="m"&gt;100&lt;/span&gt;.00 MB
+To YOUR_REPO_NAME
+! &lt;span class="o"&gt;[&lt;/span&gt;remote rejected&lt;span class="o"&gt;]&lt;/span&gt; master -&amp;gt; master &lt;span class="o"&gt;(&lt;/span&gt;pre-receive hook declined&lt;span class="o"&gt;)&lt;/span&gt;
+error: failed to push some refs to YOUR_REPO_NAME
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;h2&gt;Failed attempt to fix&lt;/h2&gt;
+&lt;p&gt;Here is an attempt to fix that fails:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;$ git rm big_file.bin
+$ git commit -m &lt;span class="s2"&gt;&amp;quot;removed big file&amp;quot;&lt;/span&gt;
+&lt;span class="o"&gt;[&lt;/span&gt;master 1eb14a7&lt;span class="o"&gt;]&lt;/span&gt; removed big_file
+$ git push
+.... &lt;span class="o"&gt;(&lt;/span&gt;still see message about failing to remove&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;The problem is that git is trying to keep track of the history of all your commits. Git wants to push both the file &lt;em&gt;and&lt;/em&gt; the fact it was deleted, so other developers can rewind the deletion. To do this, git still needs to push the large file to the remote, which it cannot do for large files.&lt;/p&gt;
+&lt;p&gt;We will look at two ways of fixing this problem:
+&lt;em&gt; Rewinding master locally, and pushing a new version of master. The downside is &lt;code&gt;big_file.bin&lt;/code&gt; will still take up memory on your local repo.
+&lt;/em&gt; Removing all mention of &lt;code&gt;big_file.bin&lt;/code&gt; from your repo by rewriting your git history. The downside to this approach is that you can break git, and it cannot be done if you have untracked files.&lt;/p&gt;
+&lt;p&gt;Let's look at these two approaches. If all else fails, the third option is to make a new clone of the repo, and copy over just the files you want -- but this should be a last resort.&lt;/p&gt;
+&lt;h3&gt;Actual fix #1: keep history local&lt;/h3&gt;
+&lt;p&gt;Our log of commits now looks like this on our local machine:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;1eb14a7 &lt;span class="o"&gt;(&lt;/span&gt;HEAD -&amp;gt; master&lt;span class="o"&gt;)&lt;/span&gt; removed big_file
+0f1a832 ... and made small change to the README
+9cee256 committed huge binary file
+a3a75bf commit before all this happened
+....... &lt;span class="o"&gt;(&lt;/span&gt;previous commits&lt;span class="o"&gt;)&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;We want to get rid of the file originally committed in commit &lt;code&gt;9cee256&lt;/code&gt;. To do this:
+1. First, reset back to that commit:&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;$ git reset 9cee256~1 &lt;span class="c1"&gt;# go back one more than the troublesome commit&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This is a &lt;em&gt;soft&lt;/em&gt; reset, so your files will stay the same on your local machine.
+2. (Optional) If you haven't done so already, you can delete &lt;code&gt;big_file.bin&lt;/code&gt;.
+3. Then add the README back to the repo, and commit it&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;$ git add README.md
+$ git commit -m &lt;span class="s2"&gt;&amp;quot;adding the README again&amp;quot;&lt;/span&gt;
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;ol&gt;
+&lt;li&gt;Finally push the new commit back up.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;$ git push origin master
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;In this approach, the local git history still has the "bad" commits in it
+&lt;img alt="what the local branches look like" src="images/github_local.png"&gt;
+They are off the main "master" track, but they will still remain on your disk. The commit you pushed up doesn't have the commits in the red box in its history, so the remote repo will look like this:
+&lt;img alt="what the remote branch looks like" src="images/github_remote.png"&gt;&lt;/p&gt;
+&lt;h3&gt;Actual Fix 2: rewrite history with &lt;code&gt;filter-branch&lt;/code&gt;&lt;/h3&gt;
+&lt;p&gt;This one will only work if you don't have unstaged work in your repo. It also means rewriting the history, so there is the potential to mess things up!&lt;/p&gt;
+&lt;p&gt;With those warnings in mind, you can run&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;git filter-branch --tree-filter &lt;span class="s1"&gt;&amp;#39;rm  big_file.bin&amp;#39;&lt;/span&gt; 9cee256..HEAD
+&lt;/pre&gt;&lt;/div&gt;
+
+
+&lt;p&gt;This will remove &lt;code&gt;big_file.bin&lt;/code&gt; from every commit from &lt;code&gt;9cee256&lt;/code&gt; to &lt;code&gt;1eb14a7&lt;/code&gt; (the current HEAD).&lt;/p&gt;
+&lt;p&gt;You should then be able to push to your repository with&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre&gt;&lt;span&gt;&lt;/span&gt;git push --allow-unrelated-histories
+&lt;/pre&gt;&lt;/div&gt;</content><category term="Github"></category></entry></feed>

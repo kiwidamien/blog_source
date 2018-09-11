@@ -1,6 +1,0 @@
-.DS_Store
-*.pyc
-pelican_themes/*
-__pycache__/*
-pelican-themes/*
-plugins/*
