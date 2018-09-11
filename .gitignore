@@ -1,1 +1,4 @@
-.DS_Store\n*.pyc\npelican_themes/*
+.DS_Store
+*.pyc
+pelican_themes/*
+__pycache__/*
